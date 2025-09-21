@@ -1,0 +1,54 @@
+services:
+  m1-wiredup-full:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      platforms:
+        - linux/arm64
+    image: m1-wiredup-full:latest
+    container_name: m1-wiredup-full-container
+    restart: unless-stopped
+    environment:
+      - PYTHONUNBUFFERED=1
+      - DEBIAN_FRONTEND=noninteractive
+      - TZ=UTC
+      - ROS_DISTRO=jazzy
+      - TURTLEBOT3_MODEL=burger
+    volumes:
+      - ../../../:/workspace:rw
+      - ./app-data:/app:rw
+      - ./logs:/var/log/app:rw
+    ports:
+      - "11311:11311"    # ROS Master
+      - "11345:11345"    # ROS Parameter Server
+      - "2222:22"        # SSH (different port)
+    networks:
+      - m1-wiredup-network
+    deploy:
+      resources:
+        limits:
+          memory: 8G
+          cpus: '4.0'
+        reservations:
+          memory: 2G
+          cpus: '1.0'
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import sys; sys.exit(0)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    command: ["tail", "-f", "/dev/null"]
+    working_dir: /workspace
+    user: appuser
+
+networks:
+  m1-wiredup-network:
+    driver: bridge
+    name: m1-wiredup-full-network
+
+volumes:
+  app-data:
+    driver: local
+  logs:
+    driver: local
