@@ -1,0 +1,115 @@
+services:
+  m1-wiredup:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      platforms:
+        - linux/arm64
+    image: m1-wiredup:latest
+    container_name: m1-wiredup-container
+    restart: unless-stopped
+    
+    # Environment variables
+    environment:
+      - PYTHONUNBUFFERED=1
+      - DEBIAN_FRONTEND=noninteractive
+      - TZ=UTC
+    
+    # Volume mounts for development
+    volumes:
+      # Mount your project code
+      - ../../:/workspace:rw
+      # Mount app directory for runtime files
+      - ./app-data:/app:rw
+      # Optional: Mount logs directory
+      - ./logs:/var/log/app:rw
+      # Optional: Mount data directory for persistent storage
+      - ./data:/data:rw
+    
+    # Port mappings (adjust as needed for your application)
+    ports:
+      - "8000:8000"    # Web server port
+      - "8080:8080"    # Alternative web port
+      - "22:22"        # SSH port
+      - "1883:1883"    # MQTT port (if needed)
+    
+    # Network configuration
+    networks:
+      - m1-wiredup-network
+    
+    # Resource limits (adjust based on your needs)
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+          cpus: '2.0'
+        reservations:
+          memory: 1G
+          cpus: '0.5'
+    
+    # Health check
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import sys; sys.exit(0)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    
+    # Keep container running
+    command: ["tail", "-f", "/dev/null"]
+    
+    # Working directory
+    working_dir: /workspace
+    
+    # User (optional - runs as appuser instead of root)
+    user: appuser
+    
+    # Capabilities (uncomment if you need GPIO access on actual Pi)
+    # cap_add:
+    #   - SYS_RAWIO
+    # devices:
+    #   - /dev/mem:/dev/mem
+
+  # Optional: Add a database service
+  # database:
+  #   image: postgres:15-alpine
+  #   container_name: m1-wiredup-db
+  #   environment:
+  #     POSTGRES_DB: m1_wiredup
+  #     POSTGRES_USER: appuser
+  #     POSTGRES_PASSWORD: password
+  #   volumes:
+  #     - ./db-data:/var/lib/postgresql/data
+  #   networks:
+  #     - m1-wiredup-network
+  #   ports:
+  #     - "5432:5432"
+
+  # Optional: Add Redis for caching
+  # redis:
+  #   image: redis:7-alpine
+  #   container_name: m1-wiredup-redis
+  #   networks:
+  #     - m1-wiredup-network
+  #   ports:
+  #     - "6379:6379"
+  #   volumes:
+  #     - ./redis-data:/data
+
+networks:
+  m1-wiredup-network:
+    driver: bridge
+    name: m1-wiredup-network
+
+volumes:
+  app-data:
+    driver: local
+  logs:
+    driver: local
+  data:
+    driver: local
+  # Uncomment if using database
+  # db-data:
+  #   driver: local
+  # redis-data:
+  #   driver: local
