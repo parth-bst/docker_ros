@@ -265,7 +265,9 @@ RUN pip3 install --no-cache-dir --break-system-packages \
     smbus2 \
     spidev \
     toml \
-    urllib3
+    urllib3 \
+    # ML packages
+    tensorflow
 
 # Add ROS2 repository and install ROS2 Jazzy development packages
 RUN apt-get update && apt-get install -y \
@@ -323,14 +325,35 @@ RUN apt-get update && apt-get install -y \
     ros-jazzy-tf2 \
     ros-jazzy-tf2-tools \
     ros-jazzy-tf2-ros \
-    # Development tools
+    # C++ Development packages
+    ros-jazzy-cv-bridge \
+    ros-jazzy-image-transport \
+    libcurl4-openssl-dev \
+    libssl-dev \
+    nlohmann-json3-dev \
+    # ML and Development tools
+    python3.12-dev \
+    cython3 \
+    build-essential \
     python3-rosdep \
     python3-colcon-common-extensions \
     python3-vcstool \
+    # Re-Speaker specific packages
+    flex \
+    bison \
+    bc \
+    libncurses5-dev \
+    libncursesw5-dev \
+    device-tree-compiler \
+    libatlas-base-dev \
+    alsa-utils \
+    python3-spidev \
+    python3-rpi.gpio \
     && rm -rf /var/lib/apt/lists/*
 
-# Initialize rosdep
-RUN rosdep init || true \
+# Initialize rosdep and configure dpkg
+RUN dpkg --configure -a \
+    && rosdep init || true \
     && rosdep update
 
 # Set up working directory
@@ -340,7 +363,20 @@ WORKDIR /workspace
 RUN useradd -m -s /bin/bash appuser && \
     usermod -aG sudo appuser && \
     echo "appuser ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers && \
-    echo "appuser:admin" | chpasswd
+    echo "appuser:admin" | chpasswd && \
+    mkdir -p /home/appuser/.ssh && \
+    chmod 700 /home/appuser/.ssh && \
+    chown appuser:appuser /home/appuser/.ssh
+
+# Configure SSH for automatic startup and passwordless login
+RUN mkdir -p /var/run/sshd && \
+    sed -i 's/#PermitRootLogin prohibit-password/PermitRootLogin yes/' /etc/ssh/sshd_config && \
+    sed -i 's/#PasswordAuthentication yes/PasswordAuthentication yes/' /etc/ssh/sshd_config && \
+    sed -i 's/#PubkeyAuthentication yes/PubkeyAuthentication yes/' /etc/ssh/sshd_config && \
+    echo "PasswordAuthentication yes" >> /etc/ssh/sshd_config && \
+    echo "PubkeyAuthentication yes" >> /etc/ssh/sshd_config && \
+    echo "AuthorizedKeysFile .ssh/authorized_keys" >> /etc/ssh/sshd_config && \
+    systemctl enable ssh
 
 # Set up ROS2 environment
 RUN echo "source /opt/ros/jazzy/setup.bash" >> /home/appuser/.bashrc \

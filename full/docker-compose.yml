@@ -21,6 +21,7 @@ services:
     ports:
       - "11311:11311"    # ROS Master
       - "11345:11345"    # ROS Parameter Server
+      - "11811:11811"    # DDS Discovery Server
       - "2222:22"        # SSH (different port)
     networks:
       - m1-wiredup-network
@@ -38,7 +39,7 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
-    command: ["tail", "-f", "/dev/null"]
+    command: ["bash", "-c", "sudo service ssh start && tail -f /dev/null"]
     working_dir: /workspace
     user: appuser
 
