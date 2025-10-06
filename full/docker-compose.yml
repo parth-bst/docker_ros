@@ -8,23 +8,35 @@ services:
     image: m1-wiredup-full:latest
     container_name: m1-wiredup-full-container
     restart: unless-stopped
+    
+    # NOTE: host networking doesn't work properly on Docker Desktop for Mac
+    # Using bridge network with port mapping instead
+    # For ROS discovery, you'll need to use DDS Discovery Server
+    
     environment:
       - PYTHONUNBUFFERED=1
       - DEBIAN_FRONTEND=noninteractive
       - TZ=UTC
       - ROS_DISTRO=jazzy
       - TURTLEBOT3_MODEL=burger
+      - ROS_DOMAIN_ID=0
     volumes:
       - ../../../:/workspace:rw
       - ./app-data:/app:rw
       - ./logs:/var/log/app:rw
+    
     ports:
-      - "11311:11311"    # ROS Master
-      - "11345:11345"    # ROS Parameter Server
-      - "11811:11811"    # DDS Discovery Server
-      - "2222:22"        # SSH (different port)
+      - "2222:2222"        # SSH
+      - "11311:11311"      # ROS Master
+      - "11345:11345"      # ROS Parameter Server
+      - "11811:11811"      # DDS Discovery Server
+      - "7400:7400/udp"    # DDS Discovery multicast
+      - "7401:7401/udp"    # DDS User traffic
+      - "7410-7430:7410-7430/udp"  # DDS additional ports
+    
     networks:
       - m1-wiredup-network
+    
     deploy:
       resources:
         limits:
@@ -33,16 +45,19 @@ services:
         reservations:
           memory: 2G
           cpus: '1.0'
+    
     healthcheck:
       test: ["CMD", "python3", "-c", "import sys; sys.exit(0)"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 40s
+    
     command: ["bash", "-c", "sudo service ssh start && tail -f /dev/null"]
     working_dir: /workspace
     user: appuser
 
+# Network configuration (only used if host networking is disabled)
 networks:
   m1-wiredup-network:
     driver: bridge

@@ -205,6 +205,7 @@ RUN apt-get update && apt-get install -y \
     psmisc \
     python-is-python3 \
     python3-libgpiod \
+    python3-pigpio \
     python3-pip \
     python3-pyaudio \
     python3-smbus2 \
@@ -338,6 +339,10 @@ RUN apt-get update && apt-get install -y \
     python3-rosdep \
     python3-colcon-common-extensions \
     python3-vcstool \
+    # ROS workflow tools
+    python3-rosinstall \
+    python3-rosinstall-generator \
+    python3-wstool \
     # Re-Speaker specific packages
     flex \
     bison \
@@ -349,6 +354,7 @@ RUN apt-get update && apt-get install -y \
     alsa-utils \
     python3-spidev \
     python3-rpi.gpio \
+    linux-headers-generic \
     && rm -rf /var/lib/apt/lists/*
 
 # Initialize rosdep and configure dpkg
@@ -369,10 +375,13 @@ RUN useradd -m -s /bin/bash appuser && \
     chown appuser:appuser /home/appuser/.ssh
 
 # Configure SSH for automatic startup and passwordless login
+# SSH listens on port 2222 to avoid conflict with host SSH when using host networking
 RUN mkdir -p /var/run/sshd && \
     sed -i 's/#PermitRootLogin prohibit-password/PermitRootLogin yes/' /etc/ssh/sshd_config && \
     sed -i 's/#PasswordAuthentication yes/PasswordAuthentication yes/' /etc/ssh/sshd_config && \
     sed -i 's/#PubkeyAuthentication yes/PubkeyAuthentication yes/' /etc/ssh/sshd_config && \
+    sed -i 's/#Port 22/Port 2222/' /etc/ssh/sshd_config && \
+    echo "Port 2222" >> /etc/ssh/sshd_config && \
     echo "PasswordAuthentication yes" >> /etc/ssh/sshd_config && \
     echo "PubkeyAuthentication yes" >> /etc/ssh/sshd_config && \
     echo "AuthorizedKeysFile .ssh/authorized_keys" >> /etc/ssh/sshd_config && \
@@ -387,8 +396,8 @@ RUN echo "source /opt/ros/jazzy/setup.bash" >> /home/appuser/.bashrc \
 # Switch to non-root user
 USER appuser
 
-# Expose ports for ROS2
-EXPOSE 11311 11345
+# Expose ports for ROS2 and SSH
+EXPOSE 11311 11345 2222
 
 # Set default command
 CMD ["/bin/bash"]
